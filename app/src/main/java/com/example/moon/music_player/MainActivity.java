@@ -1,9 +1,14 @@
 package com.example.moon.music_player;
 
 import android.content.Intent;
+import android.database.Cursor;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Environment;
+import android.os.SystemClock;
+import android.provider.MediaStore;
+import android.support.constraint.ConstraintLayout;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -11,9 +16,14 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.Toolbar;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -27,6 +37,13 @@ public class MainActivity extends AppCompatActivity {
     int currVolume = 25;
     String[] song_names;
     int pos = 0;
+    LinearLayout linearLayout;
+    Cursor cursor;
+    ArrayList<SongsObject> SongsDetails;
+    ArrayList<SongsObject> finalSelectionOfSongs;
+    TextView songTitle,songArtist,songDuration;
+
+    int[] back = {R.drawable.mba,R.drawable.mba1,R.drawable.mba2,R.drawable.mba3,R.drawable.mba4,R.drawable.mback1};
 
 
   //  int[] songs = {R.raw.song1,R.raw.song2,R.raw.song3,R.raw.song4,R.raw.song5};
@@ -40,19 +57,68 @@ public class MainActivity extends AppCompatActivity {
         v_up = (ImageButton)findViewById(R.id.button2);
         v_down = (ImageButton)findViewById(R.id.button);
         shuffle = (ImageButton)findViewById(R.id.imageButton4);
-        repeat = (ImageButton)findViewById(R.id.imageButton6);
         playlist = (ImageButton)findViewById(R.id.imageButton5);
+        linearLayout = (LinearLayout) findViewById(R.id.backgroud);
+        songTitle = (TextView)findViewById(R.id.textView);
+        songArtist = (TextView)findViewById(R.id.textView2);
+        songDuration = (TextView)findViewById(R.id.textView3);
+
+        SongsDetails = new ArrayList<>();
+
+        ActionBar actionBar = getSupportActionBar();
+        actionBar.hide();
+
+
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                for(int i= 0;i<back.length;i++) {
+
+                    final int finalI = i;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            linearLayout.setBackgroundResource(back[finalI]);
+                        }
+                    });
+
+                     SystemClock.sleep(1000*25);
+                    if(i==back.length)
+                        i=0;
+                }
+            }
+        };
+
+        Thread thread = new Thread(runnable);
+        thread.start();
 
 
 
-       songs = loadSongs();
-       song_names  =  new String[songs.length];
 
-       for(int i=0;i<songs.length;i++)
+
+      // songs = loadSongs();
+
+//        shuffle.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                Toast.makeText(getApplicationContext(),SongsDetails.get(0).getPath(),Toast.LENGTH_SHORT).show();
+//
+//                MediaPlayer mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(SongsDetails.get(0).getPath()));
+//                mediaPlayer.start();
+//            }
+//        });
+
+         finalSelectionOfSongs = loadSongs();
+
+       song_names  =  new String[finalSelectionOfSongs.size()];
+
+       for(int i=0;i<finalSelectionOfSongs.size();i++)
        {
-           String demo = songs[i].getName();
+           String demo = finalSelectionOfSongs.get(i).getDisplayName();
            song_names[i] = demo;
        }
+
+
 
 
           Intent intent = getIntent();
@@ -60,7 +126,21 @@ public class MainActivity extends AppCompatActivity {
 
          if(pos>=0){
              position = pos;
-             mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(songs[position].getAbsolutePath()));
+
+             MediaPlayer valueToMediaPlayer = StopErrorOfList.getValueToMediaPlayer();
+             if(valueToMediaPlayer!=null){
+                 valueToMediaPlayer.pause();
+                 Toast.makeText(getApplicationContext(),"Playing pause",Toast.LENGTH_SHORT).show();
+             }
+
+             mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(finalSelectionOfSongs.get(position).getPath()));
+             songTitle.setText("Song Title: " + finalSelectionOfSongs.get(position).getDisplayName());
+             songArtist.setText("Artist: " +finalSelectionOfSongs.get(position).getArtist());
+             int duration = Integer.valueOf(finalSelectionOfSongs.get(position).getDuration());
+             int min = duration/(1000*60);
+             int sec = duration%(60);
+             songDuration.setText("Duration: " + min+":" + sec);
+
              mediaPlayer.start();
              counter=1;
              play.setImageResource(R.drawable.pause);
@@ -83,7 +163,14 @@ public class MainActivity extends AppCompatActivity {
                     play.setImageResource(R.drawable.pause);
                     play.setScaleType(ImageView.ScaleType.FIT_CENTER);
                     if(mediaPlayer==null)
-                        mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(songs[position].getAbsolutePath()));
+                        mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(finalSelectionOfSongs.get(position).getPath()));
+
+                    songTitle.setText("Song Title: " + finalSelectionOfSongs.get(position).getDisplayName());
+                    songArtist.setText("Artist: " +finalSelectionOfSongs.get(position).getArtist());
+                    int duration = Integer.valueOf(finalSelectionOfSongs.get(position).getDuration());
+                    int min = duration/(1000*60);
+                    int sec = duration%(1000*60);
+                    songDuration.setText("Duration: " + min+":" + sec);
 
                    mediaPlayer.start();
                 }
@@ -100,7 +187,15 @@ public class MainActivity extends AppCompatActivity {
                 }
                 if(mediaPlayer.isPlaying())
                     mediaPlayer.stop();
-                mediaPlayer = MediaPlayer.create(getApplicationContext(), Uri.parse(songs[position].getAbsolutePath()));
+                mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(finalSelectionOfSongs.get(position).getPath()));
+
+                songTitle.setText("Song Title: " + finalSelectionOfSongs.get(position).getDisplayName());
+                songArtist.setText("Artist: " +finalSelectionOfSongs.get(position).getArtist());
+                int duration = Integer.valueOf(finalSelectionOfSongs.get(position).getDuration());
+                int min = duration/(1000*60);
+                int sec = duration%(1000*60);
+                songDuration.setText("Duration: " + min+":" + sec);
+
                 mediaPlayer.start();
             }
         });
@@ -110,12 +205,20 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 position--;
                 if(position<0){
-                    position = songs.length-1;
+                    position = finalSelectionOfSongs.size()-1;
                 }
                 if(mediaPlayer.isPlaying())
                     mediaPlayer.stop();
 
-                mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(songs[position].getAbsolutePath()));
+                mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(finalSelectionOfSongs.get(position).getPath()));
+
+                songTitle.setText("Song Title: " + finalSelectionOfSongs.get(position).getDisplayName());
+                songArtist.setText("Artist: " +finalSelectionOfSongs.get(position).getArtist());
+                int duration = Integer.valueOf(finalSelectionOfSongs.get(position).getDuration());
+                int min = duration/(1000*60);
+                int sec = duration%(1000*60);
+                songDuration.setText("Duration: " + min+":" + sec);
+
                 mediaPlayer.start();
             }
         });
@@ -142,6 +245,7 @@ public class MainActivity extends AppCompatActivity {
         playlist.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                StopErrorOfList.setValueToMediaPlayer(mediaPlayer);
                 Intent intent = new Intent(MainActivity.this,songsList.class);
                 intent.putExtra("songs",song_names);
                 startActivity(intent);
@@ -150,18 +254,82 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private File[] loadSongs() {
+    private ArrayList<SongsObject> loadSongs() {
 
-        String root = Environment.getExternalStorageDirectory().getAbsolutePath()+"/Audio";
-        if(Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
-            //Log.i("FolderExists","FolderExists");
-               File file = new File(root);
-               File[] songs_collection = file.listFiles();
-               return songs_collection;
 
-        }else
-            Log.i("FolderExists","FolderNotExists");
-        return null;
+
+        String selection = MediaStore.Audio.Media.IS_MUSIC + " != 0";
+
+        String[] projection = {
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.ARTIST,
+                MediaStore.Audio.Media.TITLE,
+                MediaStore.Audio.Media.DATA,
+                MediaStore.Audio.Media.DISPLAY_NAME,
+                MediaStore.Audio.Media.DURATION
+        };
+
+        cursor = this.managedQuery(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                null,
+                null);
+
+       // List<String> songs = new ArrayList<String>();
+        while(cursor.moveToNext()) {
+            SongsObject songsObject = new SongsObject(cursor.getString(1),cursor.getString(2)
+                                                     ,cursor.getString(3),cursor.getString(4),cursor.getString(5));
+
+            SongsDetails.add(songsObject);
+
+
+//            songs.add(cursor.getString(0) + "||"
+//                    + cursor.getString(1) + "||"
+//                    + cursor.getString(2) + "||"
+//                    + cursor.getString(3) + "||"
+//                    + cursor.getString(4) + "||"
+//                    + cursor.getString(5));
+        }
+
+
+        for(int i =0;i<SongsDetails.size();i++){
+            Log.i("SongDetail",
+                    SongsDetails.get(i).getSongTitle()+
+                    "\n"+SongsDetails.get(i).getArtist()+
+                    "\n"+SongsDetails.get(i).getPath()+
+                    "\n"+SongsDetails.get(i).getDisplayName()+
+                    "\n"+SongsDetails.get(i).getDuration());
+        }
+
+        return SongsDetails;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//        String root = Environment.getExternalStorageDirectory().getAbsolutePath()+"/Audio";
+//        if(Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
+//            //Log.i("FolderExists","FolderExists");
+//               File file = new File(root);
+//               File[] songs_collection = file.listFiles();
+//               return songs_collection;
+//
+//        }else
+//            Log.i("FolderExists","FolderNotExists");
+//        return null;
 
 
     }

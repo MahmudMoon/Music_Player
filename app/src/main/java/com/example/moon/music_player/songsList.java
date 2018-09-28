@@ -27,6 +27,7 @@ public class songsList extends AppCompatActivity {
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+
                 Intent intent1 = new Intent(songsList.this,MainActivity.class);
                 intent1.putExtra("position",position);
                 startActivity(intent1);
