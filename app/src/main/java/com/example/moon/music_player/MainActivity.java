@@ -5,6 +5,7 @@ import android.database.Cursor;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.support.constraint.ConstraintLayout;
@@ -24,6 +25,9 @@ import android.widget.Toolbar;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+
+import static java.sql.Types.NULL;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -42,18 +46,20 @@ public class MainActivity extends AppCompatActivity {
     ArrayList<SongsObject> SongsDetails;
     ArrayList<SongsObject> finalSelectionOfSongs;
     TextView songTitle,songArtist,songDuration;
+    Thread thread1 = null;
+
 
     int[] back = {R.drawable.mba,R.drawable.mba1,R.drawable.mba2,R.drawable.mba3,R.drawable.mba4,R.drawable.mback1};
 
 
   //  int[] songs = {R.raw.song1,R.raw.song2,R.raw.song3,R.raw.song4,R.raw.song5};
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         play = (ImageButton)findViewById(R.id.imageButton);
-        previous = (ImageButton)findViewById(R.id.imageButton2);
-        next = (ImageButton)findViewById(R.id.imageButton3);
+        previous = (ImageButton)findViewById(R.id.imageButton3);
+        next = (ImageButton)findViewById(R.id.imageButton2);
         v_up = (ImageButton)findViewById(R.id.button2);
         v_down = (ImageButton)findViewById(R.id.button);
         shuffle = (ImageButton)findViewById(R.id.imageButton4);
@@ -63,9 +69,10 @@ public class MainActivity extends AppCompatActivity {
         songArtist = (TextView)findViewById(R.id.textView2);
         songDuration = (TextView)findViewById(R.id.textView3);
 
+
         SongsDetails = new ArrayList<>();
 
-        ActionBar actionBar = getSupportActionBar();
+        final ActionBar actionBar = getSupportActionBar();
         actionBar.hide();
 
 
@@ -89,8 +96,9 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        Thread thread = new Thread(runnable);
+        final Thread thread = new Thread(runnable);
         thread.start();
+
 
 
 
@@ -117,7 +125,6 @@ public class MainActivity extends AppCompatActivity {
            String demo = finalSelectionOfSongs.get(i).getDisplayName();
            song_names[i] = demo;
        }
-
 
 
 
@@ -162,8 +169,15 @@ public class MainActivity extends AppCompatActivity {
                 }else {
                     play.setImageResource(R.drawable.pause);
                     play.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                    if(mediaPlayer==null)
-                        mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(finalSelectionOfSongs.get(position).getPath()));
+                    if(mediaPlayer==null) {
+
+                        if(SavedValue.isShuffelOn()) {
+                            Random random = new Random();
+                            position = random.nextInt(finalSelectionOfSongs.size());
+                        }
+
+                        mediaPlayer = MediaPlayer.create(getApplicationContext(), Uri.parse(finalSelectionOfSongs.get(position).getPath()));
+                    }
 
                     songTitle.setText("Song Title: " + finalSelectionOfSongs.get(position).getDisplayName());
                     songArtist.setText("Artist: " +finalSelectionOfSongs.get(position).getArtist());
@@ -171,20 +185,63 @@ public class MainActivity extends AppCompatActivity {
                     int min = duration/(1000*60);
                     int sec = duration%(1000*60);
                     songDuration.setText("Duration: " + min+":" + sec);
+                    mediaPlayer.start();
 
-                   mediaPlayer.start();
+
+                    mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                        @Override
+                        public void onCompletion(MediaPlayer mp) {
+                            Toast.makeText(getApplicationContext(),"Song Completed",Toast.LENGTH_SHORT).show();
+
+                            if(SavedValue.isShuffelOn()){
+                                Random random = new Random();
+                                position = random.nextInt(finalSelectionOfSongs.size());
+                            }else
+                               position++;
+
+
+                            if(position>=finalSelectionOfSongs.size()){
+                                position = 0;
+                            }
+
+                            mp.stop();
+
+
+                            songTitle.setText("Song Title: " + finalSelectionOfSongs.get(position).getDisplayName());
+                            songArtist.setText("Artist: " +finalSelectionOfSongs.get(position).getArtist());
+                            int duration = Integer.valueOf(finalSelectionOfSongs.get(position).getDuration());
+                            int min = duration/(1000*60);
+                            int sec = duration%(1000*60);
+                            songDuration.setText("Duration: " + min+":" + sec);
+                            mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(finalSelectionOfSongs.get(position).getPath()));
+                            mediaPlayer.start();
+                        }
+                    });
+
+
+
                 }
             }
         });
 
 
+
         next.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                position++;
-                if(position>=songs.length){
+
+                if(SavedValue.isShuffelOn()){
+                    Random random = new Random();
+                    position = random.nextInt(finalSelectionOfSongs.size());
+                }else
+                    position++;
+
+                if(position>=finalSelectionOfSongs.size()){
                     position = 0;
                 }
+
+                //SavedValue.setValue(position);
+
                 if(mediaPlayer.isPlaying())
                     mediaPlayer.stop();
                 mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(finalSelectionOfSongs.get(position).getPath()));
@@ -195,15 +252,54 @@ public class MainActivity extends AppCompatActivity {
                 int min = duration/(1000*60);
                 int sec = duration%(1000*60);
                 songDuration.setText("Duration: " + min+":" + sec);
-
                 mediaPlayer.start();
+
+
+                mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                    @Override
+                    public void onCompletion(MediaPlayer mp) {
+                        Toast.makeText(getApplicationContext(),"Song Completed",Toast.LENGTH_SHORT).show();
+
+                        if(SavedValue.isShuffelOn()){
+                            Random random = new Random();
+                            position = random.nextInt(finalSelectionOfSongs.size());
+                        }else
+                            position++;
+
+                        if(position>=finalSelectionOfSongs.size()){
+                            position = 0;
+                        }
+
+                        mp.stop();
+
+                        songTitle.setText("Song Title: " + finalSelectionOfSongs.get(position).getDisplayName());
+                        songArtist.setText("Artist: " +finalSelectionOfSongs.get(position).getArtist());
+                        int duration = Integer.valueOf(finalSelectionOfSongs.get(position).getDuration());
+                        int min = duration/(1000*60);
+                        int sec = duration%(1000*60);
+                        songDuration.setText("Duration: " + min+":" + sec);
+                        mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(finalSelectionOfSongs.get(position).getPath()));
+                        mediaPlayer.start();
+                    }
+                });
+
+
+
+
+
+
             }
         });
 
         previous.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                position--;
+                if(SavedValue.isShuffelOn()){
+                    Random random = new Random();
+                    position = random.nextInt(finalSelectionOfSongs.size());
+                }else
+                    position--;
+
                 if(position<0){
                     position = finalSelectionOfSongs.size()-1;
                 }
@@ -218,8 +314,40 @@ public class MainActivity extends AppCompatActivity {
                 int min = duration/(1000*60);
                 int sec = duration%(1000*60);
                 songDuration.setText("Duration: " + min+":" + sec);
-
                 mediaPlayer.start();
+
+
+                mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                    @Override
+                    public void onCompletion(MediaPlayer mp) {
+                        Toast.makeText(getApplicationContext(),"Song Completed",Toast.LENGTH_SHORT).show();
+
+                        if(SavedValue.isShuffelOn()){
+                            Random random = new Random();
+                            position = random.nextInt(finalSelectionOfSongs.size());
+                        }else
+                            position--;
+
+                        if(position>=finalSelectionOfSongs.size()){
+                            position = 0;
+                        }
+
+                        mp.stop();
+
+
+                        songTitle.setText("Song Title: " + finalSelectionOfSongs.get(position).getDisplayName());
+                        songArtist.setText("Artist: " +finalSelectionOfSongs.get(position).getArtist());
+                        int duration = Integer.valueOf(finalSelectionOfSongs.get(position).getDuration());
+                        int min = duration/(1000*60);
+                        int sec = duration%(1000*60);
+                        songDuration.setText("Duration: " + min+":" + sec);
+
+                        mediaPlayer = MediaPlayer.create(getApplicationContext(),Uri.parse(finalSelectionOfSongs.get(position).getPath()));
+                        mediaPlayer.start();
+                    }
+                });
+
+
             }
         });
 
@@ -230,6 +358,7 @@ public class MainActivity extends AppCompatActivity {
                 currVolume-=5;
                 float log1=(float)(Math.log(maxVolume-currVolume)/Math.log(maxVolume));
                 mediaPlayer.setVolume(1-log1,1-log1);
+                //changeIcon("down");
             }
         });
 
@@ -251,7 +380,40 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+
+
+        shuffle.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(SavedValue.isShuffelOn()) {
+                    SavedValue.setShuffelOn(false);
+                    shuffle.setImageResource(R.drawable.shuffel_green);
+                }else
+                    SavedValue.setShuffelOn(true);
+                    shuffle.setImageResource(R.drawable.shuffel_black);
+
+            }
+        });
+
+
+
     }
+
+//    private void changeIcon(final String icon) {
+//        Handler handler = new Handler();
+//        handler.postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                if(icon.equals("up"))
+//                    volume_.setImageResource(R.drawable.speaker);
+//                else
+//                    volume_.setImageResource(R.drawable.down);
+//
+//                SystemClock.sleep(300);
+//                volume_.setImageResource(NULL);
+//            }
+//        },100);
+//    }
 
 
     private ArrayList<SongsObject> loadSongs() {
@@ -360,5 +522,70 @@ public class MainActivity extends AppCompatActivity {
 //                }
 //            }
 //        }
-//    }
+//
+//
+//
+// }
+
+    private class Myrunnable implements Runnable{
+
+
+        MediaPlayer Player;
+        boolean isCompleted ;
+        public Myrunnable(MediaPlayer mediaPlayer) {
+            Player = mediaPlayer;
+            isCompleted = false;
+        }
+
+        @Override
+        public void run() {
+            while (!thread1.isInterrupted()) {
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+
+
+                        if(isCompleted) {
+
+                            Toast.makeText(getApplicationContext(), "song completed ", Toast.LENGTH_SHORT).show();
+
+                            position++;
+                            SavedValue.setValue(position);
+                            if(mediaPlayer!=null && mediaPlayer.isPlaying()){
+                                mediaPlayer.stop();
+                            }
+
+
+                            if(position<finalSelectionOfSongs.size()) {
+                                mediaPlayer = MediaPlayer.create(getApplicationContext(), Uri.parse(finalSelectionOfSongs.get(position).getPath()));
+                                mediaPlayer.start();
+
+                            }
+                            isCompleted = false;
+                            Toast.makeText(getApplicationContext(), "Auto move to the next song ", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+
+
+                if(mediaPlayer.getCurrentPosition()>=mediaPlayer.getDuration()){
+                    isCompleted = true;
+                }
+
+
+                if(thread1.isInterrupted()){
+                    Log.i("Interrupted","Thread Interrupted");
+                      break;
+                }
+
+                SystemClock.sleep(1000);
+            }
+
+
+        }
+    }
 }
+
+
+
